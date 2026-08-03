@@ -1,11 +1,4 @@
 
----
-
-
-
-Current README poora replace karo:
-
-```markdown
 # RidgeLens
 
 <p align="center">
