@@ -1,0 +1,102 @@
+# =========================================================
+# RidgeLens - Git Ignore Configuration
+# =========================================================
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Test coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# =========================================================
+# Private biometric data
+# Do not publish personal fingerprint photographs.
+# =========================================================
+data/good/*
+data/blurry/*
+data/dark/*
+data/glare/*
+
+# Preserve empty dataset directories
+!data/good/.gitkeep
+!data/blurry/.gitkeep
+!data/dark/.gitkeep
+!data/glare/.gitkeep
+
+# =========================================================
+# Generated outputs
+# =========================================================
+outputs/processed/*
+outputs/plots/*
+outputs/reports/*
+outputs/results/*
+
+# Preserve output directory structure
+!outputs/processed/.gitkeep
+!outputs/plots/.gitkeep
+!outputs/reports/.gitkeep
+!outputs/results/.gitkeep
+
+# Generated test and export files
+*.csv
+*.json
+*.xlsx
+
+# Allow explicitly maintained configuration JSON files
+!config/*.json
+
+# Confidential assignment documents
+*Assignment*.pdf
+*Assignment*.pdf
+*YellowSense*.pdf
+*Preparation Guide*.pdf
+
+# Large model and binary files
+*.pth
+*.pt
+*.onnx
+*.pkl
+*.joblib

@@ -1,0 +1,65 @@
+project:
+  name: "RidgeLens"
+  version: "0.1.0"
+  description: "Contactless fingerprint quality assessment and capture guidance"
+  author: "Rahul Takale"
+
+image:
+  maximum_width: 1280
+  maximum_height: 1280
+  supported_extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".bmp"
+
+thresholds:
+  blur:
+    minimum_score: 10.0
+
+  brightness:
+    minimum_value: 50.0
+    maximum_value: 210.0
+
+  glare:
+    pixel_threshold: 240
+    maximum_fraction: 0.05
+
+  roi:
+    minimum_fraction: 0.15
+
+  ridge:
+    minimum_score: 15.0
+
+  composite:
+    minimum_score: 60.0
+
+weights:
+  blur: 0.25
+  brightness: 0.15
+  glare: 0.15
+  roi: 0.20
+  ridge: 0.25
+
+processing:
+  apply_clahe: true
+  clahe_clip_limit: 2.0
+  clahe_grid_size: 8
+  enable_timing: true
+
+performance_budget_ms:
+  blur: 10
+  brightness: 5
+  glare: 10
+  roi: 100
+  ridge: 150
+  total: 300
+
+guidance:
+  good_capture: "Good capture — ready for biometric processing."
+  blurry: "Image is blurry — hold your hand steady and capture again."
+  too_dark: "Image is too dark — move to a brighter location."
+  too_bright: "Image is overexposed — reduce direct lighting."
+  glare: "Glare detected — change the finger or light angle."
+  incomplete_roi: "Finger is too small or incomplete — move it closer to the camera."
+  unclear_ridges: "Fingerprint ridges are unclear — improve focus and lighting."

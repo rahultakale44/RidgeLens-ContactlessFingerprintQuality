@@ -1,0 +1,8 @@
+opencv-python
+numpy
+streamlit
+pandas
+matplotlib
+Pillow
+PyYAML
+pytest
