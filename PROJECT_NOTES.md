@@ -138,3 +138,34 @@ Current threshold:
 
 ```text
 pixel intensity > 240
+
+---
+
+## Phase 5 — Finger ROI Detection and Completeness
+
+### Work completed
+
+- Added finger-region candidate detection.
+- Added YCrCb and HSV skin-colour masking.
+- Added grayscale foreground fallback using Otsu thresholding.
+- Added candidate-mask combination logic.
+- Added morphological opening and closing.
+- Added largest-contour filtering.
+- Added geometric plausibility checks.
+- Added final finger-mask generation.
+- Added ROI fraction calculation.
+- Added normalized ROI scoring.
+- Added bounding-box extraction.
+- Added ROI diagnostic overlay.
+- Added structured ROI result and summary serialization.
+- Added automated ROI tests using synthetic finger-like shapes.
+
+### ROI-completeness method
+
+The raw ROI measurement is:
+
+```text
+ROI fraction =
+number of pixels inside the final finger mask
+/
+total number of image pixels
