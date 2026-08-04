@@ -111,3 +111,30 @@ laplacian_response = cv2.Laplacian(
     cv2.CV_64F,
 )
 blur_score = laplacian_response.var()
+
+---
+
+## Phase 4 — Glare Detection and Overexposure Mask
+
+### Work completed
+
+- Added glare detection using overexposed-pixel fraction.
+- Added a binary glare mask.
+- Added glare percentage and glare-pixel count.
+- Added normalized glare quality scoring.
+- Added PASS and FAIL decisions.
+- Added glare-specific recapture guidance.
+- Added a reusable `GlareAnalysis` structure.
+- Added glare summary serialization without exposing raw image arrays.
+- Added threshold-boundary and validation tests.
+- Extended the initial metric evaluator to include glare.
+
+### Glare detection method
+
+A grayscale pixel is marked as glare affected when its intensity is greater than
+the configured pixel threshold.
+
+Current threshold:
+
+```text
+pixel intensity > 240

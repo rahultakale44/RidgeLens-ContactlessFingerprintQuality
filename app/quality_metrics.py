@@ -1,14 +1,20 @@
 """
 Fingerprint image-quality metrics for RidgeLens.
 
-This module implements independent and explainable quality checks. Each metric
-returns its raw measurement, normalized score, decision, threshold information,
-and processing time.
+Every metric returns a standard MetricResult containing:
 
-Phase 3 currently includes:
+- Raw measurement
+- Normalized quality score
+- PASS or FAIL decision
+- Threshold information
+- Processing time
+- Corrective guidance
+
+Implemented metrics:
 
 1. Blur and sharpness assessment using Laplacian variance.
 2. Brightness assessment using grayscale mean intensity.
+3. Glare detection using the fraction of overexposed pixels.
 """
 
 from __future__ import annotations
@@ -38,10 +44,27 @@ class MetricResult:
     threshold: dict[str, float]
     processing_time_ms: float
     message: str
+    details: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-serializable representation of the metric result."""
+        """Return a JSON-serializable metric representation."""
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class GlareAnalysis:
+    """Detailed glare output including the binary overexposure mask."""
+
+    result: MetricResult
+    glare_mask: np.ndarray
+
+    def to_summary(self) -> dict[str, Any]:
+        """Return glare information without the raw NumPy mask."""
+        return {
+            "result": self.result.to_dict(),
+            "mask_shape": list(self.glare_mask.shape),
+            "glare_pixels": int(np.count_nonzero(self.glare_mask)),
+        }
 
 
 def check_blur(
@@ -51,27 +74,6 @@ def check_blur(
 ) -> MetricResult:
     """
     Measure image sharpness using variance of the Laplacian response.
-
-    The Laplacian operator highlights rapid intensity changes such as edges and
-    fingerprint ridge boundaries. A sharp image produces stronger variation in
-    the Laplacian response, while a blurred image produces weaker variation.
-
-    Args:
-        image:
-            A grayscale uint8 image or a three-channel BGR image.
-        minimum_score:
-            Optional blur acceptance threshold. When omitted, the configured
-            threshold is used.
-        config:
-            Optional RidgeLens configuration dictionary.
-
-    Returns:
-        MetricResult containing Laplacian variance, normalized score, pass/fail
-        decision, processing time, and explanation.
-
-    Raises:
-        QualityMetricError:
-            If the image or threshold is invalid.
     """
     start_time = perf_counter()
     active_config = config or get_default_config()
@@ -127,6 +129,9 @@ def check_blur(
         },
         processing_time_ms=round(elapsed_ms, 4),
         message=message,
+        details={
+            "method": "variance_of_laplacian",
+        },
     )
 
 
@@ -138,29 +143,6 @@ def check_brightness(
 ) -> MetricResult:
     """
     Evaluate capture exposure using mean grayscale intensity.
-
-    Pixel values range from 0 to 255:
-
-    - Lower values represent darker pixels.
-    - Higher values represent brighter pixels.
-
-    Args:
-        image:
-            A grayscale uint8 image or a three-channel BGR image.
-        minimum_value:
-            Optional lower acceptable brightness limit.
-        maximum_value:
-            Optional upper acceptable brightness limit.
-        config:
-            Optional RidgeLens configuration dictionary.
-
-    Returns:
-        MetricResult containing mean intensity, normalized score, decision,
-        processing time, and user-facing explanation.
-
-    Raises:
-        QualityMetricError:
-            If the image or configured brightness range is invalid.
     """
     start_time = perf_counter()
     active_config = config or get_default_config()
@@ -225,6 +207,127 @@ def check_brightness(
         },
         processing_time_ms=round(elapsed_ms, 4),
         message=message,
+        details={
+            "too_dark": too_dark,
+            "too_bright": too_bright,
+            "method": "mean_grayscale_intensity",
+        },
+    )
+
+
+def check_glare(
+    image: np.ndarray,
+    pixel_threshold: int | None = None,
+    maximum_fraction: float | None = None,
+    config: dict[str, Any] | None = None,
+) -> GlareAnalysis:
+    """
+    Detect overexposed image regions that may hide fingerprint ridges.
+
+    A pixel is considered glare affected when its grayscale value is greater
+    than the configured pixel threshold.
+
+    Glare fraction:
+
+        overexposed pixels / total image pixels
+
+    Args:
+        image:
+            Grayscale uint8 image or three-channel BGR image.
+        pixel_threshold:
+            Pixel intensity above which a pixel is marked as glare.
+        maximum_fraction:
+            Maximum allowed fraction of glare-affected pixels.
+        config:
+            Optional RidgeLens configuration dictionary.
+
+    Returns:
+        GlareAnalysis containing MetricResult and binary glare mask.
+
+    Raises:
+        QualityMetricError:
+            If the image or threshold values are invalid.
+    """
+    start_time = perf_counter()
+    active_config = config or get_default_config()
+
+    grayscale = _ensure_grayscale(image)
+    glare_config = active_config["thresholds"]["glare"]
+
+    threshold = (
+        int(glare_config["pixel_threshold"])
+        if pixel_threshold is None
+        else int(pixel_threshold)
+    )
+    allowed_fraction = (
+        float(glare_config["maximum_fraction"])
+        if maximum_fraction is None
+        else float(maximum_fraction)
+    )
+
+    _validate_glare_settings(
+        pixel_threshold=threshold,
+        maximum_fraction=allowed_fraction,
+    )
+
+    glare_mask = np.where(
+        grayscale > threshold,
+        255,
+        0,
+    ).astype(np.uint8)
+
+    glare_pixel_count = int(np.count_nonzero(glare_mask))
+    total_pixel_count = int(grayscale.size)
+
+    glare_fraction = (
+        glare_pixel_count / total_pixel_count
+        if total_pixel_count > 0
+        else 0.0
+    )
+
+    normalized_score = normalize_glare_score(
+        glare_fraction=glare_fraction,
+        maximum_fraction=allowed_fraction,
+    )
+
+    passed = glare_fraction <= allowed_fraction
+
+    if passed:
+        message = (
+            "No excessive glare detected. Highlight coverage is within "
+            "the acceptable range."
+        )
+    else:
+        message = (
+            "Excessive glare detected. Change the finger or camera angle "
+            "and avoid direct light reflections."
+        )
+
+    elapsed_ms = (perf_counter() - start_time) * 1000.0
+
+    result = MetricResult(
+        name="glare",
+        raw_value=round(glare_fraction, 6),
+        normalized_score=round(normalized_score, 4),
+        passed=passed,
+        threshold={
+            "pixel_threshold": float(threshold),
+            "maximum_fraction": allowed_fraction,
+        },
+        processing_time_ms=round(elapsed_ms, 4),
+        message=message,
+        details={
+            "glare_fraction": round(glare_fraction, 6),
+            "glare_percentage": round(glare_fraction * 100.0, 4),
+            "glare_pixel_count": glare_pixel_count,
+            "total_pixel_count": total_pixel_count,
+            "method": "overexposed_pixel_fraction",
+        },
+    )
+
+    return GlareAnalysis(
+        result=result,
+        glare_mask=glare_mask,
     )
 
 
@@ -234,10 +337,6 @@ def normalize_blur_score(
 ) -> float:
     """
     Normalize Laplacian variance into a score between 0.0 and 1.0.
-
-    The configured minimum threshold maps to 0.5. A score twice the minimum
-    threshold maps to 1.0. This provides a gradual confidence scale instead of
-    returning only a binary decision.
     """
     blur_score = float(blur_score)
     minimum_score = float(minimum_score)
@@ -266,14 +365,7 @@ def normalize_brightness_score(
     maximum_value: float,
 ) -> float:
     """
-    Convert brightness into a 0.0–1.0 quality score.
-
-    The centre of the acceptable brightness interval receives the maximum
-    score. The score gradually decreases as brightness approaches either
-    boundary and continues decreasing outside the acceptable range.
-
-    This triangular scoring function rewards balanced exposure rather than
-    treating every accepted intensity as equally ideal.
+    Convert brightness into a balanced 0.0–1.0 quality score.
     """
     brightness = float(brightness)
     minimum_value = float(minimum_value)
@@ -301,17 +393,52 @@ def normalize_brightness_score(
     return _clamp(normalized)
 
 
+def normalize_glare_score(
+    glare_fraction: float,
+    maximum_fraction: float,
+) -> float:
+    """
+    Convert glare fraction into a 0.0–1.0 quality score.
+
+    No glare receives 1.0.
+
+    The maximum accepted glare fraction maps to 0.5.
+
+    Twice the maximum fraction maps to 0.0.
+    """
+    glare_fraction = float(glare_fraction)
+    maximum_fraction = float(maximum_fraction)
+
+    if not 0 <= glare_fraction <= 1:
+        raise QualityMetricError(
+            "Glare fraction must be between 0.0 and 1.0."
+        )
+
+    if not 0 < maximum_fraction <= 1:
+        raise QualityMetricError(
+            "Maximum glare fraction must be greater than 0 and at most 1."
+        )
+
+    normalized = 1.0 - (
+        glare_fraction / (maximum_fraction * 2.0)
+    )
+
+    return _clamp(normalized)
+
+
 def evaluate_initial_metrics(
     image: np.ndarray,
     config: dict[str, Any] | None = None,
 ) -> dict[str, MetricResult]:
     """
-    Run all metrics currently implemented in Phase 3.
-
-    This convenience function will later be expanded and integrated into the
-    complete RidgeLens quality pipeline.
+    Run all currently implemented RidgeLens quality metrics.
     """
     active_config = config or get_default_config()
+
+    glare_analysis = check_glare(
+        image=image,
+        config=active_config,
+    )
 
     return {
         "blur": check_blur(
@@ -322,6 +449,7 @@ def evaluate_initial_metrics(
             image=image,
             config=active_config,
         ),
+        "glare": glare_analysis.result,
     }
 
 
@@ -383,6 +511,22 @@ def _validate_brightness_range(
         )
 
 
+def _validate_glare_settings(
+    pixel_threshold: int,
+    maximum_fraction: float,
+) -> None:
+    """Validate glare-detection parameters."""
+    if not 0 <= pixel_threshold <= 255:
+        raise QualityMetricError(
+            "Glare pixel threshold must be between 0 and 255."
+        )
+
+    if not 0 < maximum_fraction <= 1:
+        raise QualityMetricError(
+            "Maximum glare fraction must be greater than 0 and at most 1."
+        )
+
+
 def _clamp(value: float) -> float:
     """Restrict a numeric score to the inclusive range 0.0–1.0."""
     return max(0.0, min(1.0, float(value)))
@@ -403,9 +547,18 @@ if __name__ == "__main__":
         thickness=4,
     )
 
-    results = evaluate_initial_metrics(demonstration_image)
+    cv2.circle(
+        demonstration_image,
+        (200, 60),
+        18,
+        255,
+        thickness=-1,
+    )
 
-    print("RidgeLens Phase 3 metric demonstration")
+    results = evaluate_initial_metrics(demonstration_image)
+    glare_output = check_glare(demonstration_image)
+
+    print("RidgeLens Phase 4 metric demonstration")
 
     for metric_name, result in results.items():
         print(
@@ -415,3 +568,8 @@ if __name__ == "__main__":
             f"passed={result.passed}, "
             f"time={result.processing_time_ms} ms"
         )
+
+    print(
+        "Glare mask pixels:",
+        int(np.count_nonzero(glare_output.glare_mask)),
+    )
