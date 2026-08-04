@@ -90,36 +90,9 @@ def check_ridge_clarity(
     """
     Evaluate fingerprint ridge clarity with a Gabor filter bank.
 
-    Args:
-        image:
-            Grayscale uint8 image or three-channel BGR image. The
-            CLAHE-enhanced grayscale representation is recommended.
-        roi_mask:
-            Optional binary finger mask. When supplied, ridge statistics are
-            calculated only inside the detected finger region.
-        minimum_score:
-            Optional acceptance threshold. The configured ridge threshold is
-            used when omitted.
-        orientations:
-            Number of equally spaced Gabor orientations over 0 to pi.
-        kernel_size:
-            Odd Gabor-kernel width and height.
-        sigma:
-            Gaussian envelope standard deviation.
-        wavelength:
-            Expected ridge wavelength in pixels.
-        gamma:
-            Spatial aspect ratio of the Gabor kernel.
-        config:
-            Optional RidgeLens configuration dictionary.
-
-    Returns:
-        RidgeAnalysis containing the structured metric result, combined
-        response, display visualization, mask, and per-orientation responses.
-
-    Raises:
-        RidgeAnalysisError:
-            If image, ROI mask, threshold, or filter parameters are invalid.
+    When an ROI mask is supplied, filtering is performed only on a padded
+    fingertip crop. The response is then mapped back to the full image so the
+    existing dashboard and diagnostics remain compatible.
     """
     start_time = perf_counter()
     active_config = config or get_default_config()
@@ -129,7 +102,6 @@ def check_ridge_clarity(
     configured_threshold = float(
         active_config["thresholds"]["ridge"]["minimum_score"]
     )
-
     threshold = (
         configured_threshold
         if minimum_score is None
@@ -150,6 +122,40 @@ def check_ridge_clarity(
         image_shape=grayscale.shape,
     )
 
+    padding_fraction = float(
+        active_config.get("processing", {}).get(
+            "ridge_crop_padding_fraction",
+            0.08,
+        )
+    )
+    if not 0.0 <= padding_fraction <= 0.50:
+        raise RidgeAnalysisError(
+            "Ridge crop padding fraction must be between 0.0 and 0.5."
+        )
+
+    crop_box = _find_mask_bounding_box(
+        analysis_mask,
+        padding_fraction=padding_fraction,
+    )
+    x_start, y_start, x_end, y_end = crop_box
+
+    cropped_grayscale = grayscale[
+        y_start:y_end,
+        x_start:x_end,
+    ]
+    cropped_mask = analysis_mask[
+        y_start:y_end,
+        x_start:x_end,
+    ]
+
+    if (
+        cropped_grayscale.shape[0] < kernel_size
+        or cropped_grayscale.shape[1] < kernel_size
+    ):
+        raise RidgeAnalysisError(
+            "Detected finger region is too small for ridge analysis."
+        )
+
     kernels = build_gabor_filter_bank(
         orientations=orientations,
         kernel_size=kernel_size,
@@ -158,39 +164,32 @@ def check_ridge_clarity(
         gamma=gamma,
     )
 
-    orientation_responses: list[np.ndarray] = []
+    crop_float = cropped_grayscale.astype(np.float32)
+    crop_responses: list[np.ndarray] = []
 
     for kernel in kernels:
         response = cv2.filter2D(
-            grayscale.astype(np.float32),
+            crop_float,
             ddepth=cv2.CV_32F,
             kernel=kernel,
             borderType=cv2.BORDER_REFLECT,
         )
+        crop_responses.append(np.abs(response))
 
-        absolute_response = np.abs(response)
-        orientation_responses.append(absolute_response)
-
-    stacked_responses = np.stack(
-        orientation_responses,
-        axis=0,
-    )
-
-    combined_response = np.max(
-        stacked_responses,
+    crop_combined = np.max(
+        np.stack(crop_responses, axis=0),
         axis=0,
     )
 
     ridge_score, statistics = calculate_ridge_score(
-        combined_response=combined_response,
-        analysis_mask=analysis_mask,
+        combined_response=crop_combined,
+        analysis_mask=cropped_mask,
     )
 
     normalized_score = normalize_ridge_score(
         ridge_score=ridge_score,
         minimum_score=threshold,
     )
-
     passed = ridge_score >= threshold
 
     if passed:
@@ -204,10 +203,44 @@ def check_ridge_clarity(
             "closer, and use soft side lighting before capturing again."
         )
 
-    response_visualization = normalize_response_for_display(
-        combined_response=combined_response,
-        analysis_mask=analysis_mask,
+    crop_visualization = normalize_response_for_display(
+        combined_response=crop_combined,
+        analysis_mask=cropped_mask,
     )
+
+    full_shape = grayscale.shape
+    combined_response = np.zeros(
+        full_shape,
+        dtype=np.float32,
+    )
+    combined_response[
+        y_start:y_end,
+        x_start:x_end,
+    ] = crop_combined
+    combined_response[analysis_mask == 0] = 0.0
+
+    response_visualization = np.zeros(
+        full_shape,
+        dtype=np.uint8,
+    )
+    response_visualization[
+        y_start:y_end,
+        x_start:x_end,
+    ] = crop_visualization
+    response_visualization[analysis_mask == 0] = 0
+
+    orientation_responses: list[np.ndarray] = []
+    for crop_response in crop_responses:
+        full_response = np.zeros(
+            full_shape,
+            dtype=np.float32,
+        )
+        full_response[
+            y_start:y_end,
+            x_start:x_end,
+        ] = crop_response
+        full_response[analysis_mask == 0] = 0.0
+        orientation_responses.append(full_response)
 
     elapsed_ms = (perf_counter() - start_time) * 1000.0
 
@@ -235,28 +268,25 @@ def check_ridge_clarity(
             "analysed_pixel_count": analysed_pixel_count,
             "total_pixel_count": total_pixel_count,
             "used_roi_mask": roi_mask is not None,
-            "response_mean": round(
-                statistics["mean"],
-                4,
-            ),
-            "response_std": round(
-                statistics["std"],
-                4,
-            ),
-            "response_p10": round(
-                statistics["p10"],
-                4,
-            ),
-            "response_p90": round(
-                statistics["p90"],
-                4,
-            ),
+            "crop_box_xyxy": [
+                int(x_start),
+                int(y_start),
+                int(x_end),
+                int(y_end),
+            ],
+            "crop_width": int(x_end - x_start),
+            "crop_height": int(y_end - y_start),
+            "crop_padding_fraction": padding_fraction,
+            "response_mean": round(statistics["mean"], 4),
+            "response_std": round(statistics["std"], 4),
+            "response_p10": round(statistics["p10"], 4),
+            "response_p90": round(statistics["p90"], 4),
             "response_dynamic_range": round(
                 statistics["dynamic_range"],
                 4,
             ),
             "method": (
-                "multi_orientation_zero_mean_gabor_response"
+                "cropped_multi_orientation_zero_mean_gabor_response"
             ),
         },
     )
@@ -266,10 +296,55 @@ def check_ridge_clarity(
         combined_response=combined_response,
         response_visualization=response_visualization,
         analysis_mask=analysis_mask,
-        orientation_responses=tuple(
-            orientation_responses
-        ),
+        orientation_responses=tuple(orientation_responses),
     )
+
+
+def _find_mask_bounding_box(
+    analysis_mask: np.ndarray,
+    padding_fraction: float = 0.08,
+) -> tuple[int, int, int, int]:
+    """
+    Return a padded ``(x_start, y_start, x_end, y_end)`` ROI crop.
+
+    The end coordinates are exclusive so they can be used directly in NumPy
+    slicing.
+    """
+    _validate_binary_mask(analysis_mask)
+
+    foreground_y, foreground_x = np.where(
+        analysis_mask > 0
+    )
+    if foreground_x.size == 0:
+        raise RidgeAnalysisError(
+            "Analysis mask contains no foreground pixels."
+        )
+
+    image_height, image_width = analysis_mask.shape
+
+    minimum_x = int(np.min(foreground_x))
+    maximum_x = int(np.max(foreground_x)) + 1
+    minimum_y = int(np.min(foreground_y))
+    maximum_y = int(np.max(foreground_y)) + 1
+
+    roi_width = maximum_x - minimum_x
+    roi_height = maximum_y - minimum_y
+
+    padding_x = max(
+        2,
+        int(round(roi_width * padding_fraction)),
+    )
+    padding_y = max(
+        2,
+        int(round(roi_height * padding_fraction)),
+    )
+
+    x_start = max(0, minimum_x - padding_x)
+    y_start = max(0, minimum_y - padding_y)
+    x_end = min(image_width, maximum_x + padding_x)
+    y_end = min(image_height, maximum_y + padding_y)
+
+    return x_start, y_start, x_end, y_end
 
 
 def build_gabor_filter_bank(

@@ -40,7 +40,10 @@ def create_encoded_test_image(
         thickness=8,
     )
 
-    success, encoded = cv2.imencode(".jpg", image)
+    success, encoded = cv2.imencode(
+        ".jpg",
+        image,
+    )
 
     assert success is True
 
@@ -56,10 +59,28 @@ def test_load_image_from_bytes_returns_preprocessed_outputs() -> None:
         source_name="sample.jpg",
     )
 
-    assert result.original_bgr.shape == (480, 640, 3)
-    assert result.resized_bgr.shape == (480, 640, 3)
-    assert result.grayscale.shape == (480, 640)
-    assert result.enhanced_grayscale.shape == (480, 640)
+    assert result.original_bgr.shape == (
+        480,
+        640,
+        3,
+    )
+
+    assert result.resized_bgr.shape == (
+        480,
+        640,
+        3,
+    )
+
+    assert result.grayscale.shape == (
+        480,
+        640,
+    )
+
+    assert result.enhanced_grayscale.shape == (
+        480,
+        640,
+    )
+
     assert result.metadata.source_name == "sample.jpg"
     assert result.metadata.was_resized is False
     assert result.metadata.file_size_bytes == len(image_bytes)
@@ -81,9 +102,20 @@ def test_large_image_is_resized_without_distortion() -> None:
         result.resized_bgr.shape[:2]
     )
 
-    assert processed_width == 1280
-    assert processed_height == 640
+    assert processed_width == 640
+    assert processed_height == 320
+
+    assert (
+        processed_width / processed_height
+        == pytest.approx(2.0)
+    )
+
     assert result.metadata.was_resized is True
+
+    assert result.metadata.original_width == 2400
+    assert result.metadata.original_height == 1200
+    assert result.metadata.processed_width == 640
+    assert result.metadata.processed_height == 320
 
 
 def test_resize_does_not_upscale_small_image() -> None:
@@ -95,13 +127,69 @@ def test_resize_does_not_upscale_small_image() -> None:
 
     resized, was_resized = resize_preserving_aspect_ratio(
         image,
-        maximum_width=1280,
-        maximum_height=1280,
+        maximum_width=640,
+        maximum_height=640,
     )
 
     assert resized.shape == image.shape
     assert was_resized is False
     assert resized is not image
+
+
+def test_resize_wide_image_preserves_aspect_ratio() -> None:
+    """A wide image should fit within limits without distortion."""
+    image = np.zeros(
+        (600, 1800, 3),
+        dtype=np.uint8,
+    )
+
+    resized, was_resized = resize_preserving_aspect_ratio(
+        image,
+        maximum_width=640,
+        maximum_height=640,
+    )
+
+    resized_height, resized_width = resized.shape[:2]
+
+    assert resized_width == 640
+    assert resized_height == 213
+    assert was_resized is True
+
+    assert (
+        resized_width / resized_height
+        == pytest.approx(
+            1800 / 600,
+            rel=0.01,
+        )
+    )
+
+
+def test_resize_tall_image_preserves_aspect_ratio() -> None:
+    """A tall image should fit within limits without distortion."""
+    image = np.zeros(
+        (1800, 600, 3),
+        dtype=np.uint8,
+    )
+
+    resized, was_resized = resize_preserving_aspect_ratio(
+        image,
+        maximum_width=640,
+        maximum_height=640,
+    )
+
+    resized_height, resized_width = resized.shape[:2]
+
+    assert resized_height == 640
+    assert resized_width == 213
+    assert was_resized is True
+
+    assert (
+        resized_height / resized_width
+        == pytest.approx(
+            1800 / 600,
+            rel=0.01,
+        )
+    )
 
 
 def test_convert_to_grayscale_returns_single_channel() -> None:
@@ -112,16 +200,25 @@ def test_convert_to_grayscale_returns_single_channel() -> None:
         dtype=np.uint8,
     )
 
-    grayscale = convert_to_grayscale(image)
+    grayscale = convert_to_grayscale(
+        image
+    )
 
-    assert grayscale.shape == (100, 100)
+    assert grayscale.shape == (
+        100,
+        100,
+    )
+
     assert grayscale.dtype == np.uint8
 
 
 def test_clahe_returns_same_dimensions() -> None:
     """CLAHE must preserve grayscale dimensions and data type."""
     grayscale = np.tile(
-        np.arange(256, dtype=np.uint8),
+        np.arange(
+            256,
+            dtype=np.uint8,
+        ),
         (128, 1),
     )
 
@@ -163,7 +260,11 @@ def test_unsupported_extension_is_rejected(
     tmp_path: Path,
 ) -> None:
     """Files outside the configured image formats must be rejected."""
-    unsupported_path = tmp_path / "fingerprint.gif"
+    unsupported_path = (
+        tmp_path
+        / "fingerprint.gif"
+    )
+
     unsupported_path.write_bytes(
         create_encoded_test_image()
     )
@@ -172,17 +273,24 @@ def test_unsupported_extension_is_rejected(
         ImageProcessingError,
         match="Unsupported image extension",
     ):
-        load_image_from_path(unsupported_path)
+        load_image_from_path(
+            unsupported_path
+        )
 
 
 def test_missing_image_path_raises_error(
     tmp_path: Path,
 ) -> None:
     """A missing path should produce a clear message."""
-    missing_path = tmp_path / "missing.jpg"
+    missing_path = (
+        tmp_path
+        / "missing.jpg"
+    )
 
     with pytest.raises(
         ImageProcessingError,
         match="not found",
     ):
-        load_image_from_path(missing_path)
+        load_image_from_path(
+            missing_path
+        )

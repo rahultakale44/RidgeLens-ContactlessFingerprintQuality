@@ -5,8 +5,8 @@ project:
   author: "Rahul Takale"
 
 image:
-  maximum_width: 1280
-  maximum_height: 1280
+  maximum_width: 640
+  maximum_height: 640
   supported_extensions:
     - ".jpg"
     - ".jpeg"
@@ -46,6 +46,7 @@ processing:
   clahe_clip_limit: 2.0
   clahe_grid_size: 8
   enable_timing: true
+  ridge_crop_padding_fraction: 0.08
 
 performance_budget_ms:
   blur: 10
