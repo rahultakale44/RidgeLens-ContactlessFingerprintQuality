@@ -82,3 +82,32 @@ RidgeLens-ContactlessFingerprintQuality/
 |-- requirements-lock.txt
 |-- PROJECT_NOTES.md
 `-- README.md
+
+
+---
+
+## Phase 3 — Blur and Brightness Quality Metrics
+
+### Work completed
+
+- Added a reusable `MetricResult` data structure.
+- Added Laplacian-variance blur detection.
+- Added grayscale mean brightness assessment.
+- Added normalized quality scores between 0.0 and 1.0.
+- Added metric-specific PASS and FAIL decisions.
+- Added user-facing corrective guidance.
+- Added per-metric processing-time measurement.
+- Added BGR and grayscale input support.
+- Added metric serialization for Streamlit, JSON, and CSV output.
+- Added automated tests using deterministic synthetic images.
+
+### Blur detection
+
+Blur is measured using variance of the Laplacian response.
+
+```python
+laplacian_response = cv2.Laplacian(
+    grayscale,
+    cv2.CV_64F,
+)
+blur_score = laplacian_response.var()
