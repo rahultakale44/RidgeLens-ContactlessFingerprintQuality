@@ -266,3 +266,27 @@ Image preprocessing
              |
              v
        Prioritized guidance
+
+       ---
+
+## Phase 9 — Performance Optimization
+
+### Objective
+
+The original RidgeLens pipeline produced correct quality results, but high-resolution fingerprint images required more than one second for complete processing.
+
+The main bottlenecks were:
+
+- Large input dimensions
+- Full-frame ROI processing
+- Multi-orientation Gabor filtering across the complete image
+- Repeated processing of background pixels outside the fingertip region
+
+The goal of this phase was to reduce latency without changing the public pipeline interface or diagnostic output structure.
+
+### Previous performance
+
+A clear fingerprint image with an original resolution of approximately:
+
+```text
+1448 × 1086
