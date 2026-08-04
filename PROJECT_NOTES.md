@@ -169,3 +169,48 @@ ROI fraction =
 number of pixels inside the final finger mask
 /
 total number of image pixels
+
+---
+
+## Phase 6 — Gabor-Based Ridge Clarity Assessment
+
+### Work completed
+
+- Added multi-orientation Gabor filter bank.
+- Added zero-mean normalized Gabor kernels.
+- Added grayscale and BGR input support.
+- Added ROI-aware ridge analysis.
+- Added maximum-response aggregation across orientations.
+- Added percentile-based ridge-response scoring.
+- Added normalized ridge-quality score.
+- Added PASS and FAIL guidance.
+- Added ridge-response visualization.
+- Added heatmap overlay generation.
+- Added structured ridge analysis results.
+- Added automated tests using synthetic periodic ridge patterns.
+
+### Why Gabor filters are suitable
+
+Fingerprint ridges form repeated directional intensity patterns.
+
+A Gabor filter is sensitive to:
+
+- Orientation
+- Spatial frequency
+- Local texture
+- Repeated dark-light transitions
+
+A single Gabor filter responds strongly only when its orientation matches the
+local ridge direction.
+
+Therefore, RidgeLens uses multiple orientations:
+
+```text
+0°
+22.5°
+45°
+67.5°
+90°
+112.5°
+135°
+157.5°
