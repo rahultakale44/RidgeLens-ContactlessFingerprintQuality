@@ -214,3 +214,55 @@ Therefore, RidgeLens uses multiple orientations:
 112.5°
 135°
 157.5°
+
+---
+
+## Phase 7 — Unified Quality Pipeline and Composite Decision
+
+### Work completed
+
+- Integrated image preprocessing with all five quality metrics.
+- Added unified assessment for blur, brightness, glare, ROI, and ridge clarity.
+- Added weighted composite scoring.
+- Added individual quality-gate enforcement.
+- Added final PASS or RETAKE decision.
+- Added prioritized capture guidance.
+- Added failed-metric ordering.
+- Added performance-budget monitoring.
+- Added diagnostic-output collection.
+- Added complete JSON-serializable assessment output.
+- Added command-line fingerprint assessment.
+- Added end-to-end synthetic pipeline tests.
+
+### Unified processing flow
+
+```text
+Input image
+    |
+    v
+Image preprocessing
+    |
+    +--> Blur assessment
+    |
+    +--> Brightness assessment
+    |
+    +--> Glare detection
+    |
+    +--> Finger ROI detection
+    |
+    `--> ROI-aware ridge analysis
+             |
+             v
+      Normalized metric scores
+             |
+             v
+      Weighted composite score
+             |
+             v
+      Individual quality gates
+             |
+             v
+       Final PASS / RETAKE
+             |
+             v
+       Prioritized guidance
