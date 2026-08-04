@@ -42,35 +42,7 @@ The application supports:
 
 ---
 
-## 📸 Application Preview
-
-### Home Dashboard
-
-![RidgeLens Home Dashboard](screenshots/ridgelens-home.png)
-
-### Fingerprint Assessment Result
-
-![RidgeLens Assessment Result](screenshots/ridgelens-result.png)
-
-### Quality Metrics
-
-![RidgeLens Quality Metrics](screenshots/ridgelens-metrics.png)
-
-### Finger ROI Detection
-
-![RidgeLens Finger ROI](screenshots/ridgelens-roi.png)
-
-### Diagnostic Masks
-
-![RidgeLens Diagnostic Masks](screenshots/ridgelens-masks.png)
-
-### Performance Diagnostics
-
-![RidgeLens Performance](screenshots/ridgelens-performance.png)
-
----
-
-## 📖 Overview
+## Overview
 
 RidgeLens is a contactless fingerprint image-quality assessment system.
 
@@ -111,7 +83,7 @@ actionable recapture guidance.
 
 ---
 
-## ✨ Core Features
+##  Core Features
 
 ### Image capture
 
@@ -170,7 +142,7 @@ RidgeLens evaluates five quality dimensions:
 
 ---
 
-## 🧠 Quality Metrics
+##  Quality Metrics
 
 ### 1. Sharpness
 
@@ -279,7 +251,7 @@ textures.
 
 ---
 
-## 🧮 Composite Scoring
+##  Composite Scoring
 
 Each quality metric produces a normalized score between 0 and 1.
 
@@ -324,7 +296,7 @@ Valid quality gates + score >= 60
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
@@ -371,7 +343,7 @@ Valid quality gates + score >= 60
 
 ---
 
-## ⚡ Performance Optimization
+##  Performance Optimization
 
 The initial implementation processed high-resolution images and applied all
 Gabor filters across the complete frame.
@@ -441,7 +413,7 @@ Actual timings may vary depending on:
 
 ---
 
-## 🔬 Diagnostic Views
+##  Diagnostic Views
 
 RidgeLens provides seven diagnostic tabs.
 
@@ -477,7 +449,7 @@ Examples:
 
 ---
 
-## 🧰 Technology Stack
+##  Technology Stack
 
 | Category             | Technology                |
 | -------------------- | ------------------------- |
@@ -557,7 +529,7 @@ RidgeLens-ContactlessFingerprintQuality/
 
 ---
 
-## 🚀 Local Installation
+##  Local Installation
 
 ### 1. Clone the repository
 
@@ -635,7 +607,7 @@ http://localhost:8501
 
 ---
 
-## 🖥️ Application Usage
+##  Application Usage
 
 1. Open the RidgeLens application.
 2. Keep the default quality thresholds or adjust them from the sidebar.
@@ -669,7 +641,7 @@ For best results:
 
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 Quality thresholds and weights are stored in `config.yaml`.
 
@@ -718,7 +690,7 @@ tuned without editing the core analysis code.
 
 ---
 
-## 🧪 Automated Testing
+##  Automated Testing
 
 RidgeLens includes a comprehensive Pytest suite.
 
@@ -770,7 +742,7 @@ python -m pytest tests/test_ridge_analysis.py -v
 
 ---
 
-## 📦 JSON Export
+##  JSON Export
 
 Each completed assessment can be downloaded as a JSON file.
 
@@ -792,7 +764,7 @@ biometric identity template.
 
 ---
 
-## 🔐 Privacy
+##  Privacy
 
 RidgeLens follows a privacy-conscious prototype design.
 
@@ -808,7 +780,7 @@ RidgeLens follows a privacy-conscious prototype design.
 
 ---
 
-## ⚠️ Current Limitations
+##  Current Limitations
 
 * The system does not perform fingerprint matching.
 * Thresholds require calibration on a larger labelled dataset.
@@ -839,7 +811,7 @@ RidgeLens follows a privacy-conscious prototype design.
 
 ---
 
-## 🎯 Project Purpose
+##  Project Purpose
 
 RidgeLens demonstrates:
 
@@ -857,7 +829,7 @@ RidgeLens demonstrates:
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 ### Rahul Takale
 
@@ -869,7 +841,7 @@ AI, Machine Learning, Generative AI, Backend Development and Computer Vision
 
 ---
 
-## 📄 License
+## License
 
 This project was developed as a technical assignment and educational
 computer-vision prototype.
@@ -882,7 +854,7 @@ regulations.
 
 <div align="center">
 
-### ⭐ RidgeLens
+### RidgeLens
 
 **Fast fingerprint-quality assessment before biometric processing**
 
@@ -895,17 +867,5 @@ regulations.
 Made with Python, OpenCV and Streamlit
 
 </div>
-```
 
-## Screenshots ke exact names
-
-Apne best screenshots ko `screenshots` folder mein in names se save karo:
-
-```text
-ridgelens-home.png
-ridgelens-result.png
-ridgelens-metrics.png
-ridgelens-roi.png
-ridgelens-masks.png
-ridgelens-performance.png
 ```
