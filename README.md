@@ -1,5 +1,5 @@
 
-# 🔍 RidgeLens
+# RidgeLens
 
 ### Contactless Fingerprint Quality Assessment & Capture Guidance
 
