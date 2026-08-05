@@ -1,4 +1,9 @@
+<div align="center">
 
+<p align="center">
+  <img src="./RidgeLens.png" alt="RidgeLens Banner" width="100%" />
+</p>
+</div>
 # RidgeLens
 
 ### Contactless Fingerprint Quality Assessment & Capture Guidance
