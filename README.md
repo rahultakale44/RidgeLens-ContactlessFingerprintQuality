@@ -4,8 +4,8 @@
   <img src="./RidgeLens.png" alt="RidgeLens Banner" width="100%" />
 </p>
 </div>
-# RidgeLens
 
+# RidgeLens
 ### Contactless Fingerprint Quality Assessment & Capture Guidance
 
 A fast, explainable, and configurable computer-vision system that evaluates
